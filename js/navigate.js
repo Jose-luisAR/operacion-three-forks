@@ -114,7 +114,7 @@
       else { w.walked += stride; w.pos = Geo.advance(w.pos, w.heading, stride); }
     } else {
       w.clock += dt / 60;
-      if (Geo.distance(w.pos, dest) < 4) arrive(dest);
+      if (w.yard && w.yard.earthOrigin && Geo.distance(w.pos, dest) < arriveRadius()) arrive(dest);
     }
     checkReturn();
     updatePanels();
@@ -316,32 +316,91 @@
   }
 
   /* ---------- backyard mode (real GPS) ---------- */
+  // Every meter walked in the yard moves the astronaut `scale` meters in Jezero,
+  // so the 300 m route fits in a normal backyard. The phone compass turns the map.
+  let compassOn = false, gpsTimer = null;
+  const yardScale = () => Number($('selYardScale').value) || 1;
+  function gpsMessage(text, error, retry) {
+    $('gpsBox').hidden = !text;
+    $('gpsBox').classList.toggle('gps--error', !!error);
+    $('gpsText').textContent = text || '';
+    $('gpsRetry').hidden = !retry;
+    $('yardStatus').textContent = text || '';
+  }
+  function onCompass(ev) {
+    let h = null;
+    if (typeof ev.webkitCompassHeading === 'number') h = ev.webkitCompassHeading;           // iPhone
+    else if (ev.absolute && typeof ev.alpha === 'number') h = (360 - ev.alpha) % 360;       // Android
+    if (h === null || !w || w.mode !== 'yard') return;
+    const turn = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+    w.heading = (h + turn + 360) % 360;
+    w.yard.compass = true;
+  }
+  function startCompass() {
+    if (compassOn) return;
+    const listen = () => {
+      compassOn = true;
+      window.addEventListener('deviceorientationabsolute', onCompass);
+      window.addEventListener('deviceorientation', onCompass);
+    };
+    // iPhone asks for permission, and only after a tap.
+    if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') listen(); }).catch(() => {});
+    } else listen();
+  }
+  function stopCompass() {
+    window.removeEventListener('deviceorientationabsolute', onCompass);
+    window.removeEventListener('deviceorientation', onCompass);
+    compassOn = false;
+  }
   function startYard() {
-    const status = $('yardStatus');
-    if (!('geolocation' in navigator)) { status.textContent = 'This browser has no GPS.'; return; }
-    if (!window.isSecureContext) { status.textContent = 'GPS only works when the app is opened from an https link (for example, GitHub Pages).'; return; }
-    status.textContent = 'Looking for GPS signal… go outdoors.';
-    w.yard = { earthOrigin: null, marsOrigin: { ...w.pos }, lastFix: null };
+    stopYard();
+    if (!('geolocation' in navigator)) return gpsMessage('This browser can’t use GPS. Try Chrome on Android or Safari on iPhone.', true);
+    if (!window.isSecureContext) return gpsMessage('GPS only works from the https link (jose-luisar.github.io/operacion-three-forks), not from a downloaded file.', true);
+    gpsMessage('Looking for GPS signal… stand outdoors and allow location access.');
+    w.paused = false;
+    w.yard = { earthOrigin: null, marsOrigin: { ...w.pos }, lastFix: null, compass: false };
+    startCompass();
+    gpsTimer = setTimeout(() => {
+      if (w && w.yard && !w.yard.earthOrigin) gpsMessage('No GPS signal yet. Go outdoors, away from walls and roofs, and check that Location is on.', true, true);
+    }, 20000);
     geoWatch = navigator.geolocation.watchPosition(p => {
+      if (!w || !w.yard) return;
       const { latitude: la, longitude: lo, accuracy } = p.coords;
-      if (!w.yard.earthOrigin) w.yard.earthOrigin = { la, lo };
+      if (accuracy > 30) return gpsMessage(`Weak GPS signal (±${Math.round(accuracy)} m). Move to an open spot and wait a few seconds.`, true);
+      const k = yardScale();
+      if (!w.yard.earthOrigin) { w.yard.earthOrigin = { la, lo }; w.yard.marsOrigin = { ...w.pos }; w.yard.k = k; }
       const o = w.yard.earthOrigin;
-      const dE = (lo - o.lo) * 111320 * Math.cos(o.la * Math.PI / 180);
-      const dN = (la - o.la) * 110540;
+      const dE = (lo - o.lo) * 111320 * Math.cos(o.la * Math.PI / 180) * w.yard.k;
+      const dN = (la - o.la) * 110540 * w.yard.k;
       const pos = { e: w.yard.marsOrigin.e + dE, s: w.yard.marsOrigin.s - dN };
       w.walked += Geo.distance(w.pos, pos);
       w.pos = pos;
+      // Without a compass, the direction comes from the last meters walked.
       const last = w.yard.lastFix;
       if (!last) w.yard.lastFix = { ...pos };
-      else if (Geo.distance(last, pos) >= 1.5) { w.heading = Geo.bearing(last, pos); w.yard.lastFix = { ...pos }; }
-      status.textContent = `GPS on · accuracy ±${Math.round(accuracy)} m. Every meter in the yard is a meter in Jezero.`;
-    }, err => { status.textContent = 'Could not use GPS: ' + err.message; }, { enableHighAccuracy: true, maximumAge: 1000 });
+      else if (Geo.distance(last, pos) >= 1.5 * w.yard.k) {
+        if (!w.yard.compass) w.heading = Geo.bearing(last, pos);
+        w.yard.lastFix = { ...pos };
+      }
+      gpsMessage(`GPS on (±${Math.round(accuracy)} m). 1 m in the yard = ${w.yard.k} m on Mars.`);
+    }, err => {
+      const why = err.code === 1
+        ? 'Location access is blocked. Allow it for this site in the browser settings (lock icon next to the address), then tap Turn on GPS.'
+        : err.code === 3 ? 'GPS took too long to answer. Go outdoors and tap Turn on GPS.'
+        : 'The phone couldn’t get a location. Check that Location is on and tap Turn on GPS.';
+      gpsMessage(why, true, true);
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
   }
   function stopYard() {
     if (geoWatch !== null) navigator.geolocation.clearWatch(geoWatch);
     geoWatch = null;
-    $('yardStatus').textContent = '';
+    clearTimeout(gpsTimer);
+    stopCompass();
+    gpsMessage('');
   }
+  // In the yard, "arrived" means within a few real steps of the stop.
+  const arriveRadius = () => (w.mode === 'yard' ? Math.max(5, 2.5 * ((w.yard && w.yard.k) || yardScale())) : 4);
 
   /* ---------- panels ---------- */
   function side(rel) {
@@ -528,6 +587,8 @@
       if (w.mode === 'yard') startYard(); else stopYard();
     }));
     $('btnRestart').addEventListener('click', () => newWalk(w.plan));
+    $('gpsRetry').addEventListener('click', () => startYard());
+    $('selYardScale').addEventListener('change', () => { if (w && w.mode === 'yard') startYard(); });
     window.addEventListener('resize', draw);
   }
   function open(plan) {

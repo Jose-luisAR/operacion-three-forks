@@ -32,7 +32,7 @@ Operation Three Forks is a web app that plans and guides an astronaut's walk (EV
 5. **Return rule.** When the suit reserve is only enough to get back with a 25% margin, the app warns the astronaut and offers two options: return now, or pick up one more tube only if the reserve allows it.
 6. **Demo modes.**
    - **Simulation:** the route walks itself at ×1, ×5 or ×20.
-   - **Backyard mode:** uses the phone's real GPS. Every meter walked on Earth is a meter in Jezero.
+   - **Backyard mode:** uses the phone's real GPS and compass (outdoors, from the https link). A scale setting lets the route fit a yard: 1 m walked can be 1, 2 or 5 m in Jezero.
 
 ## Data
 

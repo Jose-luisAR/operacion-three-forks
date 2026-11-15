@@ -1,5 +1,5 @@
 /* Keeps the app on the phone so it works offline (there is no internet on Mars). */
-const CACHE = 'threeforks-en-v1';
+const CACHE = 'threeforks-en-v2';
 const FILES = [
   './',
   'index.html',

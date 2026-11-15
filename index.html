@@ -113,6 +113,11 @@
 
     <div class="nearby" id="nearby"></div>
 
+    <div class="gps" id="gpsBox" hidden aria-live="polite">
+      <p id="gpsText"></p>
+      <button type="button" class="btn btn--primary btn--small" id="gpsRetry" hidden>Turn on GPS</button>
+    </div>
+
     <div class="zoom">
       <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
       <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
@@ -181,7 +186,7 @@
 
   <aside class="demo" aria-label="Demo controls">
     <h2>Demo</h2>
-    <p class="muted">On Mars, position would come from the suit or the rover. Here you can simulate it or really walk with your phone’s GPS.</p>
+    <p class="muted">On Mars, position would come from the suit or the rover. Here you can simulate it or really walk with your phone’s GPS (outdoors, with location turned on).</p>
     <fieldset>
       <legend>How to move</legend>
       <label class="option"><input type="radio" name="mode" value="sim" checked><span>Simulation (the route walks itself)</span></label>
@@ -192,6 +197,13 @@
         <option value="1">×1 (real time)</option>
         <option value="5" selected>×5</option>
         <option value="20">×20</option>
+      </select>
+    </label>
+    <label class="field"><span>Backyard scale</span>
+      <select id="selYardScale">
+        <option value="1">1 m in the yard = 1 m on Mars (park or field)</option>
+        <option value="2" selected>1 m in the yard = 2 m on Mars</option>
+        <option value="5">1 m in the yard = 5 m on Mars (small yard)</option>
       </select>
     </label>
     <label class="field"><span>Suit reserve in the demo</span>
