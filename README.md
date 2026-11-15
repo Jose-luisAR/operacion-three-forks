@@ -2,6 +2,8 @@
 
 **Tripulación Apogeo · NASA Space Apps Challenge 2026 · Reto "Mapa marciano"**
 
+**▶ App en vivo / Live app: https://jose-luisar.github.io/operacion-three-forks/**
+
 Aplicación web que planea y guía una caminata (EVA) en Marte. El objetivo de la caminata es recoger los **10 tubos de muestras** que el rover Perseverance dejó en el depósito **Three Forks** (cráter Jezero). En el camino también se toman **muestras nuevas** en lugares que el rover nunca visitó.
 
 ## Cómo abrirla
