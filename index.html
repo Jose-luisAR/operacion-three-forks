@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Operación Three Forks · Tripulación Apogeo</title>
+<meta name="description" content="Planea y guía una caminata en Marte para recoger los 10 tubos de muestras que Perseverance dejó en Three Forks, cráter Jezero, con datos reales de la NASA. / Plans and guides a walk on Mars to retrieve the 10 sample tubes Perseverance left at Three Forks, Jezero Crater, using real NASA data.">
+<meta name="ai-assistance" content="Código y textos escritos con ayuda de Claude (Anthropic); revisado y probado por el equipo. / Code and text written with help from Claude (Anthropic); reviewed and tested by the team.">
+<meta name="theme-color" content="#15110E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="img/icono.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+
+<!-- ============ VISTA 1: PLANIFICACIÓN ============ -->
+<div class="plan" id="vistaPlan">
+  <header class="barra">
+    <div class="barra__titulo">
+      <h1 data-i18n="app.titulo">Operación Three Forks</h1>
+      <p data-i18n="app.lugar">Cráter Jezero · depósito de muestras de Perseverance · 18.453° N, 77.408° E</p>
+    </div>
+    <div class="barra__acciones">
+      <span class="chip" id="chipTemp">MEDA</span>
+      <span class="chip" id="chipPresion"></span>
+      <span class="chip" id="chipSol"></span>
+      <div class="idioma" role="group" data-i18n-attr="aria-label:idioma">
+        <button type="button" class="idioma__btn" data-lang="es" aria-pressed="true" lang="es">ES</button>
+        <button type="button" class="idioma__btn" data-lang="en" aria-pressed="false" lang="en">EN</button>
+      </div>
+      <button type="button" class="btn btn--primario" id="btnIniciar" data-i18n="btn.iniciar">Iniciar caminata</button>
+    </div>
+  </header>
+
+  <aside class="lateral lateral--izq" data-i18n-attr="aria-label:plan.aria">
+    <div>
+      <h2 data-i18n="plan.titulo">Plan de la caminata</h2>
+      <p class="tenue" data-i18n="plan.desc"></p>
+    </div>
+    <div class="cifras">
+      <div class="cifra"><b id="cifDist">–</b><span data-i18n="cifra.pie"></span></div>
+      <div class="cifra"><b id="cifTiempo">–</b><span data-i18n="cifra.estimado"></span></div>
+      <div class="cifra"><b id="cifParadas">–</b><span data-i18n="cifra.paradas"></span></div>
+    </div>
+    <p class="aviso-excede" id="avisoExcede" hidden data-i18n="seg.excede"></p>
+    <ol class="paradas" id="listaParadas"></ol>
+    <p class="nota" data-i18n="plan.nota"></p>
+  </aside>
+
+  <main class="mapa-zona">
+    <div id="mapa" data-i18n-attr="aria-label:mapa.aria"></div>
+    <div class="mapa-aviso" data-i18n="mapa.aviso"></div>
+  </main>
+
+  <aside class="lateral lateral--der" data-i18n-attr="aria-label:lado.aria">
+    <h2 data-i18n="capas">Capas</h2>
+    <label class="capa"><input type="checkbox" data-capa="ruta" checked><span data-i18n="capa.ruta"></span></label>
+    <label class="capa"><input type="checkbox" data-capa="tubos" checked><span data-i18n="capa.tubos"></span></label>
+    <label class="capa"><input type="checkbox" data-capa="rover" checked><span data-i18n="capa.rover"></span></label>
+    <label class="capa"><input type="checkbox" data-capa="ciencia" checked><span data-i18n="capa.ciencia"></span></label>
+    <label class="capa"><input type="checkbox" data-capa="alcance"><span data-i18n="capa.alcance"></span></label>
+
+    <h2 class="sep" data-i18n="sup.titulo">Supuestos de la misión</h2>
+    <p class="tenue sup-nota" data-i18n="sup.nota"></p>
+    <div class="ajustes">
+      <label class="ajuste"><span data-i18n="sup.vel"></span><output id="outVel"></output>
+        <input type="range" id="inVel" data-sup="velocidad_m_s" min="0.3" max="1.2" step="0.1"></label>
+      <label class="ajuste"><span data-i18n="sup.tubo"></span><output id="outTubo"></output>
+        <input type="range" id="inTubo" data-sup="min_por_tubo" min="2" max="20" step="1"></label>
+      <label class="ajuste"><span data-i18n="sup.muestra"></span><output id="outMuestra"></output>
+        <input type="range" id="inMuestra" data-sup="min_por_muestra" min="5" max="40" step="5"></label>
+      <label class="ajuste"><span data-i18n="sup.reserva"></span><output id="outReserva"></output>
+        <input type="range" id="inReserva" data-sup="duracion_eva_min" min="60" max="480" step="30"></label>
+      <label class="ajuste"><span data-i18n="sup.margen"></span><output id="outMargen"></output>
+        <input type="range" id="inMargen" data-sup="margen_regreso" min="0.1" max="0.5" step="0.05"></label>
+      <button type="button" class="enlace" id="btnRestablecer" data-i18n="sup.restablecer"></button>
+    </div>
+
+    <h2 class="sep" data-i18n="seg.titulo">Seguridad</h2>
+    <div class="tarjeta">
+      <b data-i18n="seg.dist"></b>
+      <span class="tenue" id="segDist"></span>
+    </div>
+    <div class="tarjeta">
+      <b data-i18n="seg.terreno"></b>
+      <span class="tenue" id="segTerreno"></span>
+    </div>
+    <div class="tarjeta">
+      <b data-i18n="seg.luz"></b>
+      <span class="tenue" id="segLuz"></span>
+    </div>
+    <button type="button" class="btn btn--linea" id="btnFuentes" data-i18n="btn.fuentes"></button>
+  </aside>
+
+  <section class="linea-tiempo" data-i18n-attr="aria-label:lt.aria">
+    <div class="linea-tiempo__horas"><span id="ltSalida"></span><span id="ltRegreso"></span><span id="ltLimite"></span></div>
+    <div class="linea-tiempo__barra" id="ltBarra"></div>
+    <div class="linea-tiempo__leyenda"><span class="ley ley--camino" data-i18n="lt.caminar"></span><span class="ley ley--tubo" data-i18n="lt.tubo"></span><span class="ley ley--ciencia" data-i18n="lt.ciencia"></span><span class="ley ley--reserva" data-i18n="lt.reserva"></span></div>
+  </section>
+</div>
+
+<!-- ============ VISTA 2: NAVEGACIÓN ============ -->
+<div class="nav" id="vistaNav" hidden>
+  <div class="telefono" id="telefono">
+    <canvas id="lienzo" data-i18n-attr="aria-label:nav.lienzo"></canvas>
+
+    <header class="indicacion" id="indicacion" aria-live="polite">
+      <svg class="indicacion__icono" id="icoManiobra" viewBox="0 0 52 52" aria-hidden="true"></svg>
+      <div>
+        <div class="indicacion__dist" id="indDist">–</div>
+        <div class="indicacion__dest" id="indDest">–</div>
+      </div>
+      <div class="indicacion__luego" id="indLuego"></div>
+    </header>
+
+    <div class="entorno" id="entorno"></div>
+
+    <div class="zoom">
+      <button type="button" id="zoomMas" data-i18n-attr="aria-label:mapa.acercar">+</button>
+      <button type="button" id="zoomMenos" data-i18n-attr="aria-label:mapa.alejar">−</button>
+    </div>
+
+    <section class="hoja" data-i18n-attr="aria-label:nav.estado">
+      <div class="hoja__asa" aria-hidden="true"></div>
+      <div class="hoja__fila">
+        <div><span class="hoja__hora" id="hojaHora">–</span><span class="tenue" data-i18n="nav.regresoA"></span></div>
+        <div class="tenue" id="hojaCasa">–</div>
+      </div>
+      <div class="hoja__datos">
+        <div><b id="hojaTubos">–</b><span data-i18n="nav.tubos"></span></div>
+        <div><b id="hojaMuestras">–</b><span data-i18n="nav.muestras"></span></div>
+        <div><b id="hojaO2">–</b><span data-i18n="nav.o2"></span></div>
+        <div><b id="hojaReloj">–</b><span data-i18n="nav.hora"></span></div>
+      </div>
+      <div class="hoja__botones">
+        <button type="button" class="btn btn--linea" id="btnFoto" data-i18n="nav.foto"></button>
+        <button type="button" class="btn btn--gris" id="btnPausa"></button>
+      </div>
+    </section>
+
+    <!-- Llegada -->
+    <section class="tarjeta-llegada" id="llegada" hidden aria-live="polite">
+      <div class="llegada__foto">
+        <canvas id="llegSat" width="840" height="400" data-i18n-attr="aria-label:card.satAria"></canvas>
+        <img id="llegFoto" alt="" hidden>
+        <span class="llegada__credito" id="llegCredito"></span>
+        <span class="llegada__marca" id="llegMarca"></span>
+        <div class="pestanas" role="group" data-i18n-attr="aria-label:card.aria">
+          <button type="button" class="pestana" id="tabSat" aria-pressed="true" data-i18n="card.satelite"></button>
+          <button type="button" class="pestana" id="tabRover" aria-pressed="false"></button>
+        </div>
+      </div>
+      <div class="llegada__cuerpo">
+        <h2 id="llegTitulo"></h2>
+        <p class="tenue" id="llegPista"></p>
+        <dl class="llegada__datos" id="llegDatos"></dl>
+        <ul class="llegada__pasos" id="llegPasos"></ul>
+        <div class="ciencia" id="llegCiencia"></div>
+        <div class="llegada__botones">
+          <button type="button" class="btn btn--primario btn--grande" id="llegListo"></button>
+          <button type="button" class="btn btn--linea" id="llegCerrar"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Alerta -->
+    <section class="alerta" id="alerta" hidden role="alert">
+      <div class="alerta__caja">
+        <div class="alerta__titulo">
+          <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M15 3 L28 26 H2 Z" fill="none" stroke="#F2A93B" stroke-width="2.5" stroke-linejoin="round"/><path d="M15 11 V18 M15 21.5 V22" stroke="#F2A93B" stroke-width="2.5" stroke-linecap="round"/></svg>
+          <span id="alertaTitulo"></span>
+        </div>
+        <p id="alertaTexto"></p>
+      </div>
+      <canvas id="alertaMapa" width="708" height="400" data-i18n-attr="aria-label:alerta.mapa"></canvas>
+      <div class="alerta__botones">
+        <button type="button" class="btn btn--primario btn--grande" id="alertaRegresar" data-i18n="alerta.regresar"></button>
+        <button type="button" class="btn btn--linea btn--grande" id="alertaSeguir"></button>
+      </div>
+      <p class="nota" id="alertaNota"></p>
+    </section>
+  </div>
+
+  <aside class="demo" data-i18n-attr="aria-label:demo.aria">
+    <h2 data-i18n="demo.titulo"></h2>
+    <p class="tenue" data-i18n="demo.desc"></p>
+    <fieldset>
+      <legend data-i18n="demo.mover"></legend>
+      <label class="capa"><input type="radio" name="modo" value="sim" checked><span data-i18n="demo.sim"></span></label>
+      <label class="capa"><input type="radio" name="modo" value="patio"><span data-i18n="demo.patio"></span></label>
+    </fieldset>
+    <label class="campo"><span data-i18n="demo.vel"></span>
+      <select id="selVel">
+        <option value="1" data-i18n="demo.tiempoReal"></option>
+        <option value="5" selected>×5</option>
+        <option value="20">×20</option>
+      </select>
+    </label>
+    <label class="campo"><span data-i18n="demo.reserva"></span>
+      <select id="selReserva">
+        <option value="" id="optReservaPlan" selected></option>
+        <option value="90" data-i18n="demo.reservaAlerta"></option>
+      </select>
+    </label>
+    <p class="tenue" id="estadoPatio"></p>
+    <button type="button" class="btn btn--linea" id="btnReiniciar" data-i18n="demo.reiniciar"></button>
+    <button type="button" class="btn btn--gris" id="btnVolver" data-i18n="demo.volver"></button>
+  </aside>
+</div>
+
+<!-- Fuentes -->
+<dialog class="dialogo" id="dlgFuentes">
+  <h2 data-i18n="fuentes.titulo"></h2>
+  <h3 data-i18n="fuentes.reales"></h3>
+  <ul data-i18n-html="fuentes.lista"></ul>
+  <h3 data-i18n="fuentes.supuestos"></h3>
+  <p class="tenue" data-i18n="fuentes.supNota"></p>
+  <ul id="listaSupuestos"></ul>
+  <p class="tenue" data-i18n="fuentes.verificar"></p>
+  <form method="dialog"><button class="btn btn--primario" data-i18n="card.cerrar"></button></form>
+</dialog>
+
+<script src="vendor/leaflet.js"></script>
+<script src="js/datos.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/ruta.js"></script>
+<script src="js/planificar.js"></script>
+<script src="js/navegar.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "Operación Three Forks",
+  "short_name": "Three Forks",
+  "description": "Planea y guía una caminata en Marte para recoger los tubos de Perseverance en Three Forks.",
+  "lang": "es",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#15110E",
+  "theme_color": "#15110E",
+  "icons": [{ "src": "img/icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
