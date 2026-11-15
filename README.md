@@ -1,80 +1,90 @@
-# Operación Three Forks
+# Operation Three Forks
 
-**Tripulación Apogeo · NASA Space Apps Challenge 2026 · Reto "Mapa marciano"**
+**Tripulación Apogeo · NASA Space Apps Challenge 2026 · “Martian Map” challenge**
 
-**▶ App en vivo / Live app: https://jose-luisar.github.io/operacion-three-forks/**
+**▶ Live app: https://jose-luisar.github.io/operacion-three-forks/**
+**▶ Presentation: [presentation.pdf](presentation.pdf)**
 
-Aplicación web que planea y guía una caminata (EVA) en Marte. El objetivo de la caminata es recoger los **10 tubos de muestras** que el rover Perseverance dejó en el depósito **Three Forks** (cráter Jezero). En el camino también se toman **muestras nuevas** en lugares que el rover nunca visitó.
+Operation Three Forks is a web app that plans and guides an astronaut's walk (EVA) on Mars. The goal of the walk is to retrieve the **10 sample tubes** that the Perseverance rover left at the **Three Forks** depot in Jezero Crater, and to collect **new samples** along the way at spots the rover never visited.
 
-## Cómo abrirla
+## How to open it
 
-- **En la computadora:** abre `index.html` con doble clic (Chrome o Edge). Funciona sin internet.
-- **En el celular:** publícala en GitHub Pages y abre el enlace `https://…`. Desde ahí se puede instalar como app (PWA), funciona sin internet y se activa el **modo patio** con GPS.
+- **On a computer:** double-click `index.html` (Chrome or Edge). It works offline.
+- **On a phone:** open the live app link. From there it can be installed as an app (PWA), it works offline and **backyard mode** can use the phone's GPS.
 
-## Qué hace
+## What it does
 
-1. **Planificación (en el hábitat).**
-   - Muestra un mapa HiRISE de 25 cm con varias capas: ruta, tubos, recorrido real del rover, ciencia nueva y distancia máxima al hábitat.
-   - Calcula la ruta más corta. Usa "vecino más cercano" y luego mejora 2-opt.
-   - Muestra la línea de tiempo de la EVA contra la reserva del traje.
-   - El hábitat se puede arrastrar en el mapa, y cada tubo se puede quitar o agregar a la ruta.
-2. **Navegación tipo GPS (caminando).**
-   - El mapa gira hacia donde caminas.
-   - Da indicaciones vuelta por vuelta ("10 m → Tubo 7 · Bearwallow; luego gira a la derecha").
-   - Indica qué hay alrededor ("Cráter B · 14 m a tu derecha").
-   - Muestra hora de regreso, tubos y muestras recogidos, O₂ y reloj de Marte.
-3. **Llegada.** Para cada parada muestra una vista satelital propia, centrada en ese punto y con la línea que indica hacia dónde apunta el tubo, y la panorámica real del rover de esos días. Además, para cada tubo muestra sus datos (designación, sol, azimut, contenido), una lista de pasos y la **ciencia nueva** de esa parada.
-4. **Regla de regreso.** La app avisa cuando la reserva del traje solo alcanza para volver al hábitat con un 25 % de margen. Ofrece dos opciones: regresar ya, o recoger un tubo más si todavía alcanza.
-5. **Supuestos ajustables.** Velocidad al caminar, minutos por tubo y por muestra, reserva del traje y margen de regreso se cambian con controles; la ruta, la línea de tiempo y las alertas se recalculan al momento.
-6. **Español e inglés** con un botón ES / EN.
-7. **Modos de demostración.**
-   - **Simulación:** la ruta se camina sola, a ×1, ×5 o ×20.
-   - **Modo patio:** usa el GPS real del celular. Cada metro que caminas en la Tierra es un metro en Jezero.
+1. **Planning at the habitat.**
+   - Layered map on top of a 25 cm HiRISE image: planned route, tubes, the rover's real traverse, new-science targets and maximum distance from the habitat.
+   - Computes the shortest route (nearest neighbor followed by 2-opt improvement).
+   - Shows the EVA timeline against the suit reserve.
+   - The habitat can be dragged on the map, and any stop can be removed from or added back to the route.
+2. **Adjustable mission assumptions.** Walking speed, minutes per tube and per sample, suit reserve and return margin are sliders; the route, timeline and alerts update immediately.
+3. **GPS-style navigation during the walk.**
+   - The map turns to face the walking direction.
+   - Turn-by-turn directions (“10 m → Tube 7 · Bearwallow; then turn right”).
+   - Shows what is nearby (“Crater B · 14 m on your right”).
+   - Tracks return time, tubes and samples collected, oxygen and Mars local time.
+4. **Arrival at each stop.**
+   - A satellite close-up centered on that point, with a white line for the tube's direction.
+   - The **real Front Hazcam photo** Perseverance took right after dropping that tube, where the tube can be seen on the ground.
+   - The tube's data (designation, collection and deposit sols, contents) and a checklist that includes the new sample to take there.
+5. **Return rule.** When the suit reserve is only enough to get back with a 25% margin, the app warns the astronaut and offers two options: return now, or pick up one more tube only if the reserve allows it.
+6. **Demo modes.**
+   - **Simulation:** the route walks itself at ×1, ×5 or ×20.
+   - **Backyard mode:** uses the phone's real GPS. Every meter walked on Earth is a meter in Jezero.
 
-## Datos
+## Data
 
-| Real (NASA) | Archivo |
+| Real NASA data | File |
 |---|---|
-| Imagen HiRISE 25 cm de Jezero (Mars Trek, capa `JEZ_hirise_soc_006…`, zoom 17) | `img/hirise_three_forks.jpg` |
-| Posición, sol y azimut de los 10 tubos (PDS Geosciences, Mars 2020 Sample Depot) | `datos/fuentes/sample_tube_locations.csv`, `sample_tube_event_sols.csv` |
-| Recorrido del rover en el depósito (MMGIS `M20_waypoints.json`) | `datos/fuentes/M20_waypoints_depot.csv` |
-| Clima MEDA, sol 1133 | `datos/fuentes/meda_ultimos_soles.json` |
-| Contexto alrededor del depósito: misma capa HiRISE a zoom 15 (1.3 m/px) | `img/hirise_contexto.jpg` |
-| Panorámicas Mastcam-Z de los soles 670, 690–692 y 693 (PDS, `browse/mosaics`) | `img/mastcamz_*.jpg` |
+| 25 cm HiRISE image of Jezero (Mars Trek, layer `JEZ_hirise_soc_006…`, zoom 17) | `img/hirise_three_forks.jpg` |
+| Surroundings of the depot: same HiRISE layer at zoom 15 (1.3 m/px) | `img/hirise_context.jpg` |
+| Position, sols and azimuth of the 10 tubes (PDS Geosciences, Mars 2020 Sample Depot) | `data/sources/sample_tube_locations.csv`, `sample_tube_event_sols.csv` |
+| Front Hazcam photo of each tube on the ground (Mars 2020 Raw Images, grayscale) | `img/hazcam/*.jpg`, list in `data/sources/hazcam_tube_images.csv` |
+| Rover traverse at the depot (MMGIS `M20_waypoints.json`) | `data/sources/M20_waypoints_depot.csv` |
+| MEDA weather, sol 1133 | `data/sources/meda_latest_sols.json` |
+| Mastcam-Z panorama of the depot, sol 693 (PDS, `browse/mosaics`) | `img/mastcamz_sol693.jpg` |
 
-**Supuestos de diseño** (se muestran como tales en la app):
-- ubicación del hábitat;
-- velocidad al caminar: 0.5 m/s;
-- 6 min por tubo y 15 min por muestra nueva;
-- reserva del traje: 4 h;
-- margen de regreso: 25 %;
-- objetivos A y B: dos cráteres pequeños elegidos en la imagen HiRISE, fuera del recorrido del rover.
+**Design assumptions** (labeled as such in the app and adjustable):
+- habitat location;
+- walking speed: 0.5 m/s;
+- 6 min per tube and 15 min per new sample;
+- suit reserve: 4 h;
+- return margin: 25%;
+- targets A and B: two small craters picked from the HiRISE image, off the rover's traverse.
 
-**Por verificar:** la alineación entre la imagen HiRISE y las coordenadas del rover. Comparada con el mapa orbital oficial del depósito (PDS, `browse/depot/m20_orbital_map_three_forks.png`), la posición coincide a unos 10–15 m.
+**To verify:** the alignment between the HiRISE image and the rover coordinates. Compared with the official orbital map of the depot (PDS, `browse/depot/m20_orbital_map_three_forks.png`), the positions match to within about 10–15 m.
 
-## Estructura
+## Project structure
 
 ```
-index.html            vistas de planificación y navegación
-css/estilos.css
-js/datos.js           generado por scripts/preparar_datos.py
-js/i18n.js            textos en español e inglés
-js/geo.js             coordenadas, distancias y rumbos en metros
-js/ruta.js            ruta óptima y presupuesto de tiempo
-js/planificar.js      mapa Leaflet
-js/navegar.js         GPS, llegada, alerta y modo patio
-js/app.js             estado y unión de vistas
-sw.js, manifest.webmanifest   app instalable y sin internet
-scripts/preparar_datos.py     arma js/datos.js a partir de datos/fuentes/
-vendor/               Leaflet 1.9 (licencia BSD-2)
+index.html            planning and navigation views
+css/styles.css
+js/data.js            generated by scripts/prepare_data.py
+js/geo.js             coordinates, distances and bearings in meters
+js/route.js           optimal route and time budget
+js/plan.js            Leaflet map
+js/navigate.js        GPS view, arrival cards, return alert, backyard mode
+js/app.js             shared state, assumptions and view switching
+sw.js, manifest.webmanifest   installable, offline app
+scripts/prepare_data.py       builds js/data.js from data/sources/
+vendor/               Leaflet 1.9 (BSD-2 license)
+presentation.pdf      project presentation (7 slides)
 ```
 
-Para regenerar los datos: `python scripts/preparar_datos.py` (con `--descargar` vuelve a bajar las fuentes de PDS y MEDA).
+To rebuild the data: `python scripts/prepare_data.py` (add `--download` to fetch the PDS and MEDA sources again).
 
-## Tecnologías
+## Technology
 
-HTML, CSS y JavaScript sin frameworks, Leaflet y Canvas 2D; Python para preparar los datos.
+HTML, CSS and JavaScript with no frameworks, Leaflet and Canvas 2D; Python to prepare the data.
 
-Uso de IA: el equipo usó Claude (Anthropic) como asistente para proponer la idea, buscar y procesar los datos de la NASA, programar y depurar la app, y redactar y traducir textos. El equipo revisó y probó todo. La app no usa IA mientras funciona. Todas las imágenes son de la NASA; ninguna imagen, video o audio fue generado por IA.
+## Use of AI
 
-Las imágenes son cortesía de NASA/JPL-Caltech/University of Arizona. Este proyecto no está afiliado a la NASA ni respaldado por ella.
+The team used an AI assistant (Claude, by Anthropic) as a support tool during development, mainly to help with parts of the code and with drafting and translating text. The app itself does not use AI. All images come from NASA; no images, video or audio were generated with AI.
+
+## Credits
+
+Images courtesy of NASA/JPL-Caltech/University of Arizona and NASA/JPL-Caltech/ASU/MSSS. This project is not affiliated with or endorsed by NASA.
+
+MIT License · Tripulación Apogeo, TecNM Campus Zacatepec, Mexico.

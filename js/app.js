@@ -1,186 +1,171 @@
-/* Operación Three Forks — estado general, supuestos ajustables, idioma y unión de las dos vistas. */
+/* Operation Three Forks — shared state, adjustable assumptions and the link
+   between the planning and navigation views. */
 (function () {
-  const D = window.DATOS;
-  const S = D.supuestos;
+  const D = window.DATA;
+  const A = D.assumptions;
   const $ = id => document.getElementById(id);
-  const t = (k, v) => I18N.t(k, v);
 
-  /* Terreno: variación de elevación medida por el rover en el depósito. */
-  const elevs = D.recorrido.filter(r => r.sol >= 652 && r.sol <= 693).map(r => r.elev);
-  const variacion = Math.max(...elevs) - Math.min(...elevs);
-  const terreno = () => t('terreno.chip', { v: (variacion / 2).toFixed(1) });
+  /* Terrain: elevation range measured by the rover at the depot. */
+  const elevs = D.traverse.filter(r => r.sol >= 652 && r.sol <= 693).map(r => r.elev);
+  const relief = Math.max(...elevs) - Math.min(...elevs);
+  const terrain = `Flat terrain · ±${(relief / 2).toFixed(1)} m`;
 
-  /* Supuestos de la misión: valores originales (del script) y los que el usuario ajuste. */
-  const CLAVES = ['velocidad_m_s', 'min_por_tubo', 'min_por_muestra', 'duracion_eva_min', 'margen_regreso'];
+  /* Mission assumptions: original values (from the data script) and user edits. */
+  const KEYS = ['walk_speed_m_s', 'min_per_tube', 'min_per_sample', 'suit_reserve_min', 'return_margin'];
   const ORIGINAL = {};
-  CLAVES.forEach(k => { ORIGINAL[k] = S[k]; });
+  KEYS.forEach(k => { ORIGINAL[k] = A[k]; });
 
-  const paradas = Ruta.paradasBase();
-  const estado = {
-    paradas,
-    habitat: { ...S.habitat },
-    incluidas: new Set(paradas.map(p => p.id)),
+  const stops = Route.baseStops();
+  const state = {
+    stops,
+    habitat: { ...A.habitat },
+    included: new Set(stops.map(p => p.id)),
     plan: null,
   };
 
-  // Recordar el último plan y los supuestos en este navegador (si se puede).
+  // Remember the last plan in this browser, when storage is available.
+  const STORE = 'threeforks.plan.v2';
   try {
-    const g = JSON.parse(localStorage.getItem('threeforks.plan') || 'null');
-    if (g && g.habitat) { estado.habitat = g.habitat; estado.incluidas = new Set(g.incluidas); }
-    if (g && g.supuestos) CLAVES.forEach(k => { if (typeof g.supuestos[k] === 'number') S[k] = g.supuestos[k]; });
-  } catch (e) { /* sin almacenamiento: se usa el plan por defecto */ }
-  function guardar() {
-    const sup = {}; CLAVES.forEach(k => { sup[k] = S[k]; });
-    try { localStorage.setItem('threeforks.plan', JSON.stringify({ habitat: estado.habitat, incluidas: [...estado.incluidas], supuestos: sup })); } catch (e) { /* nada */ }
+    const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (saved && saved.habitat) { state.habitat = saved.habitat; state.included = new Set(saved.included); }
+    if (saved && saved.assumptions) KEYS.forEach(k => { if (typeof saved.assumptions[k] === 'number') A[k] = saved.assumptions[k]; });
+  } catch (e) { /* no storage: use the default plan */ }
+  function save() {
+    const assumptions = {}; KEYS.forEach(k => { assumptions[k] = A[k]; });
+    try { localStorage.setItem(STORE, JSON.stringify({ habitat: state.habitat, included: [...state.included], assumptions })); } catch (e) { /* ignore */ }
   }
 
-  function recalcular() {
-    const elegidas = paradas.filter(p => estado.incluidas.has(p.id));
-    estado.plan = Ruta.planificar(estado.habitat, elegidas);
-    pintarPlan();
-    Planificar.actualizar(estado, estado.plan);
-    guardar();
+  function recalc() {
+    const chosen = stops.filter(p => state.included.has(p.id));
+    state.plan = Route.plan(state.habitat, chosen);
+    renderPlan();
+    PlanView.update(state, state.plan);
+    save();
   }
 
-  function pintarPlan() {
-    const P = estado.plan;
-    $('cifDist').textContent = Math.round(P.total) + ' m';
-    $('cifTiempo').textContent = Ruta.duracion(P.minutos);
-    $('cifParadas').textContent = P.orden.length;
-    $('avisoExcede').hidden = P.minutos <= S.duracion_eva_min;
-    const lista = P.orden.map(p => {
-      const insignia = p.tipo === 'tubo' ? `<span class="insignia insignia--tubo">${p.num}</span>` : `<span class="insignia insignia--ciencia">${p.etiqueta}</span>`;
-      const nombre = p.tipo === 'tubo'
-        ? `${p.nombre}${p.ref.tipo !== 'núcleo de roca' ? ` <small>(${t('tipo.' + p.ref.tipo)})</small>` : ''}`
-        : t('lista.muestra', { n: p.nombre });
-      return `<li><button type="button" data-ir="${p.id}">${insignia}<span>${nombre}</span><span class="tenue">${Math.round(p.tramo)} m</span></button></li>`;
+  function renderPlan() {
+    const P = state.plan;
+    $('statDist').textContent = Math.round(P.total) + ' m';
+    $('statTime').textContent = Route.duration(P.minutes);
+    $('statStops').textContent = P.order.length;
+    $('overWarning').hidden = P.minutes <= A.suit_reserve_min;
+    const items = P.order.map(p => {
+      const badge = p.type === 'tube' ? `<span class="badge badge--tube">${p.num}</span>` : `<span class="badge badge--science">${p.label}</span>`;
+      const name = p.type === 'tube'
+        ? `${p.name}${p.ref.kind !== 'rock core' ? ` <small>(${p.ref.kind})</small>` : ''}`
+        : `${p.name} · new sample`;
+      return `<li><button type="button" data-goto="${p.id}">${badge}<span>${name}</span><span class="muted">${Math.round(p.leg)} m</span></button></li>`;
     });
-    lista.push(`<li><div class="paradas__regreso"><span class="insignia insignia--casa">H</span><span>${t('lista.regreso')}</span><span class="tenue">${Math.round(P.regreso)} m</span></div></li>`);
-    const fuera = paradas.filter(p => !estado.incluidas.has(p.id));
-    if (fuera.length) lista.push(`<li class="paradas__fuera">${t('lista.fuera')} ${fuera.map(p => `<button type="button" class="enlace" data-alternar-lista="${p.id}">${p.tipo === 'tubo' ? p.num + ' ' + p.nombre : p.nombre}</button>`).join(', ')}</li>`);
-    $('listaParadas').innerHTML = lista.join('');
+    items.push(`<li><div class="stops__back"><span class="badge badge--home">H</span><span>Back to habitat</span><span class="muted">${Math.round(P.back)} m</span></div></li>`);
+    const out = stops.filter(p => !state.included.has(p.id));
+    if (out.length) items.push(`<li class="stops__out">Not in this route: ${out.map(p => `<button type="button" class="link" data-toggle-list="${p.id}">${p.type === 'tube' ? p.num + ' ' + p.name : p.name}</button>`).join(', ')}</li>`);
+    $('stopList').innerHTML = items.join('');
 
-    const pct = Math.round(S.margen_regreso * 100);
-    $('segDist').textContent = t('seg.distTxt', { m: Math.round(P.maxCasa), p: pct });
-    $('segTerreno').textContent = t('seg.terrenoTxt', { v: variacion.toFixed(1), e: Math.min(...elevs).toFixed(1) });
-    $('segLuz').textContent = t('seg.luzTxt', { a: D.meda.sunrise.slice(0, 5), b: D.meda.sunset.slice(0, 5), sol: D.meda.sol });
+    const pct = Math.round(A.return_margin * 100);
+    $('safeDist').textContent = `${Math.round(P.maxFromHome)} m at most. Return rule: the reserve must always be enough to get back with a ${pct}% margin.`;
+    $('safeTerrain').textContent = `Flat at the depot: elevation measured by the rover varies ${relief.toFixed(1)} m (${Math.min(...elevs).toFixed(1)} m).`;
+    $('safeLight').textContent = `Sunrise ${D.meda.sunrise.slice(0, 5)}, sunset ${D.meda.sunset.slice(0, 5)} (MEDA, sol ${D.meda.sol}).`;
 
-    // Línea de tiempo dentro de la reserva del traje
-    const total = Math.max(S.duracion_eva_min, P.minutos);
-    const seg = P.segmentos.map(s => {
-      const cls = s.tipo === 'camino' ? 'camino' : s.tipo;
-      const ancho = Math.max(0.3, s.min / total * 100);
-      const txt = s.parada && ancho > 3 ? (s.parada.tipo === 'tubo' ? s.parada.num : s.parada.etiqueta) : '';
-      const tit = s.parada ? `${s.parada.nombre}: ${Math.round(s.min)} min` : t('lt.caminarMin', { m: Math.round(s.min) });
-      return `<div class="seg seg--${cls}" style="width:${ancho}%" title="${tit}">${txt}</div>`;
+    // Timeline inside the suit reserve
+    const total = Math.max(A.suit_reserve_min, P.minutes);
+    const segs = P.segments.map(s => {
+      const width = Math.max(0.3, s.min / total * 100);
+      const txt = s.stop && width > 3 ? (s.stop.type === 'tube' ? s.stop.num : s.stop.label) : '';
+      const title = s.stop ? `${s.stop.name}: ${Math.round(s.min)} min` : `Walk ${Math.round(s.min)} min`;
+      return `<div class="seg seg--${s.type}" style="width:${width}%" title="${title}">${txt}</div>`;
     });
-    const reserva = Math.max(0, S.duracion_eva_min - P.minutos);
-    if (reserva > 0) seg.push(`<div class="seg seg--reserva" style="flex:1">${t('lt.reservaTxt', { d: Ruta.duracion(reserva) })}</div>`);
-    $('ltBarra').innerHTML = seg.join('');
-    $('ltBarra').classList.toggle('excede', P.minutos > S.duracion_eva_min);
-    $('ltSalida').textContent = t('lt.salida', { h: S.hora_salida });
-    $('ltRegreso').textContent = t('lt.regreso', { h: Ruta.horaMas(S.hora_salida, P.minutos) });
-    $('ltLimite').textContent = t('lt.limite', { h: Ruta.horaMas(S.hora_salida, S.duracion_eva_min) });
+    const reserve = Math.max(0, A.suit_reserve_min - P.minutes);
+    if (reserve > 0) segs.push(`<div class="seg seg--reserve" style="flex:1">reserve ${Route.duration(reserve)}</div>`);
+    $('tlBar').innerHTML = segs.join('');
+    $('tlBar').classList.toggle('over', P.minutes > A.suit_reserve_min);
+    $('tlStart').textContent = `Departure ${A.start_time} LMST`;
+    $('tlReturn').textContent = `Estimated return ${Route.addTime(A.start_time, P.minutes)}`;
+    $('tlLimit').textContent = `Suit limit ${Route.addTime(A.start_time, A.suit_reserve_min)} (assumed)`;
   }
 
-  /* ---------- supuestos ajustables ---------- */
-  const formato = {
-    velocidad_m_s: v => `${v.toFixed(1)} m/s`,
-    min_por_tubo: v => `${v} min`,
-    min_por_muestra: v => `${v} min`,
-    duracion_eva_min: v => Ruta.duracion(v),
-    margen_regreso: v => `${Math.round(v * 100)} %`,
+  /* ---------- adjustable assumptions ---------- */
+  const FORMAT = {
+    walk_speed_m_s: v => `${v.toFixed(1)} m/s`,
+    min_per_tube: v => `${v} min`,
+    min_per_sample: v => `${v} min`,
+    suit_reserve_min: v => Route.duration(v),
+    return_margin: v => `${Math.round(v * 100)} %`,
   };
-  const salida = { velocidad_m_s: 'outVel', min_por_tubo: 'outTubo', min_por_muestra: 'outMuestra', duracion_eva_min: 'outReserva', margen_regreso: 'outMargen' };
+  const OUTPUT = { walk_speed_m_s: 'outSpeed', min_per_tube: 'outTube', min_per_sample: 'outSample', suit_reserve_min: 'outReserve', return_margin: 'outMargin' };
 
-  function pintarSupuestos() {
-    document.querySelectorAll('[data-sup]').forEach(inp => {
-      const k = inp.dataset.sup;
-      inp.value = S[k];
-      $(salida[k]).textContent = formato[k](S[k]);
-      inp.setAttribute('aria-valuetext', formato[k](S[k]));
+  function renderAssumptions() {
+    document.querySelectorAll('[data-assumption]').forEach(inp => {
+      const k = inp.dataset.assumption;
+      inp.value = A[k];
+      $(OUTPUT[k]).textContent = FORMAT[k](A[k]);
+      inp.setAttribute('aria-valuetext', FORMAT[k](A[k]));
     });
-    $('btnRestablecer').hidden = CLAVES.every(k => S[k] === ORIGINAL[k]);
-    $('optReservaPlan').textContent = t('demo.reservaPlan', { d: Ruta.duracion(S.duracion_eva_min) });
-    const pct = Math.round(S.margen_regreso * 100);
-    $('listaSupuestos').innerHTML = [
-      t('fuentes.sup1'),
-      t('fuentes.sup2', { v: S.velocidad_m_s.toFixed(1) }),
-      t('fuentes.sup3', { a: S.min_por_tubo, b: S.min_por_muestra }),
-      t('fuentes.sup4', { h: Ruta.duracion(S.duracion_eva_min), p: pct }),
-      t('fuentes.sup5'),
+    $('btnReset').hidden = KEYS.every(k => A[k] === ORIGINAL[k]);
+    $('optReservePlan').textContent = `Same as the plan (${Route.duration(A.suit_reserve_min)})`;
+    $('assumptionList').innerHTML = [
+      'Habitat location (can be moved on the map).',
+      `Walking speed: ${A.walk_speed_m_s.toFixed(1)} m/s.`,
+      `Time per tube: ${A.min_per_tube} min; per new sample: ${A.min_per_sample} min.`,
+      `Suit reserve: ${Route.duration(A.suit_reserve_min)}; return margin: ${Math.round(A.return_margin * 100)}%.`,
+      'Targets A and B: small craters picked from the HiRISE image, off the rover’s traverse.',
     ].map(x => `<li>${x}</li>`).join('');
   }
 
-  function pintarChips() {
-    $('chipTemp').textContent = t('chip.meda', { sol: D.meda.sol, min: Math.round(D.meda.min_temp), max: Math.round(D.meda.max_temp) });
-    $('chipPresion').textContent = `${Math.round(D.meda.pressure)} Pa`;
-    $('chipSol').textContent = t('chip.puesta', { h: D.meda.sunset.slice(0, 5) });
-  }
-
-  function cambio(c) {
-    if (c.habitat) estado.habitat = c.habitat;
-    if (c.alternar) {
-      if (estado.incluidas.has(c.alternar)) estado.incluidas.delete(c.alternar); else estado.incluidas.add(c.alternar);
+  function change(c) {
+    if (c.habitat) state.habitat = c.habitat;
+    if (c.toggle) {
+      if (state.included.has(c.toggle)) state.included.delete(c.toggle); else state.included.add(c.toggle);
     }
-    recalcular();
+    recalc();
   }
 
-  function iniciar() {
-    I18N.aplicar();
-    pintarChips();
-    pintarSupuestos();
+  function init() {
+    $('chipTemp').textContent = `MEDA sol ${D.meda.sol}: ${Math.round(D.meda.min_temp)} / ${Math.round(D.meda.max_temp)} °C`;
+    $('chipPressure').textContent = `${Math.round(D.meda.pressure)} Pa`;
+    $('chipSunset').textContent = `Sunset ${D.meda.sunset.slice(0, 5)} LMST`;
+    renderAssumptions();
 
-    Planificar.iniciar(estado, cambio);
-    recalcular();
-    Navegar.conectar();
-    $('btnPausa').textContent = t('nav.pausar');
+    PlanView.init(state, change);
+    recalc();
+    NavView.bind();
 
-    document.querySelectorAll('[data-sup]').forEach(inp => inp.addEventListener('input', () => {
-      S[inp.dataset.sup] = Number(inp.value);
-      pintarSupuestos();
-      recalcular();
-      Navegar.refrescar();
+    document.querySelectorAll('[data-assumption]').forEach(inp => inp.addEventListener('input', () => {
+      A[inp.dataset.assumption] = Number(inp.value);
+      renderAssumptions();
+      recalc();
+      NavView.refresh();
     }));
-    $('btnRestablecer').addEventListener('click', () => {
-      CLAVES.forEach(k => { S[k] = ORIGINAL[k]; });
-      pintarSupuestos();
-      recalcular();
-      Navegar.refrescar();
+    $('btnReset').addEventListener('click', () => {
+      KEYS.forEach(k => { A[k] = ORIGINAL[k]; });
+      renderAssumptions();
+      recalc();
+      NavView.refresh();
     });
 
-    document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => I18N.cambiar(b.dataset.lang)));
-    I18N.alCambiar(() => {
-      pintarChips();
-      pintarSupuestos();
-      recalcular();
-      Navegar.refrescar();
+    $('stopList').addEventListener('click', e => {
+      const b = e.target.closest('[data-goto]');
+      if (b) PlanView.focus(b.dataset.goto);
+      const t = e.target.closest('[data-toggle-list]');
+      if (t) change({ toggle: t.dataset.toggleList });
+    });
+    $('btnSources').addEventListener('click', () => $('dlgSources').showModal());
+    $('btnStart').addEventListener('click', () => {
+      if (!state.plan.order.length) return;
+      $('planView').hidden = true; $('navView').hidden = false;
+      NavView.open(state.plan);
+    });
+    $('btnBack').addEventListener('click', () => {
+      NavView.close();
+      $('navView').hidden = true; $('planView').hidden = false;
+      PlanView.resize();
     });
 
-    $('listaParadas').addEventListener('click', e => {
-      const b = e.target.closest('[data-ir]');
-      if (b) Planificar.enfocar(b.dataset.ir);
-      const a = e.target.closest('[data-alternar-lista]');
-      if (a) cambio({ alternar: a.dataset.alternarLista });
-    });
-    $('btnFuentes').addEventListener('click', () => $('dlgFuentes').showModal());
-    $('btnIniciar').addEventListener('click', () => {
-      if (!estado.plan.orden.length) return;
-      $('vistaPlan').hidden = true; $('vistaNav').hidden = false;
-      Navegar.abrir(estado.plan);
-    });
-    $('btnVolver').addEventListener('click', () => {
-      Navegar.cerrar();
-      $('vistaNav').hidden = true; $('vistaPlan').hidden = false;
-      Planificar.redimensionar();
-    });
-
-    // App instalable y sin internet cuando se sirve por https.
+    // Installable and offline when served over https.
     if ('serviceWorker' in navigator && location.protocol === 'https:') {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     }
   }
 
-  window.App = { estado, terreno };
-  document.addEventListener('DOMContentLoaded', iniciar);
+  window.App = { state, terrain };
+  document.addEventListener('DOMContentLoaded', init);
 })();

@@ -1,52 +1,49 @@
-/* Operación Three Forks — geometría local.
-   Sistema "mundo": metros con E hacia el este y S hacia el sur, origen en la
-   esquina noroeste de la imagen HiRISE. Así la imagen se dibuja tal cual. */
+/* Operation Three Forks — local geometry.
+   "World" frame: meters, with E pointing east and S pointing south, origin at
+   the north-west corner of the HiRISE image, so the image can be drawn as is. */
 (function () {
-  const D = window.DATOS;
-  const L = D.limites;
-  const M = D.m_por_grado;
-  const latRef = (L.norte + L.sur) / 2;
-  const cosRef = Math.cos(latRef * Math.PI / 180);
+  const D = window.DATA;
+  const B = D.bounds;
+  const M = D.m_per_degree;
+  const refLat = (B.north + B.south) / 2;
+  const cosRef = Math.cos(refLat * Math.PI / 180);
 
-  const anchoM = (L.este - L.oeste) * M * cosRef;
-  const altoM = (L.norte - L.sur) * M;
-  const mPorPxX = anchoM / L.ancho_px;
-  const mPorPxY = altoM / L.alto_px;
+  const widthM = (B.east - B.west) * M * cosRef;
+  const heightM = (B.north - B.south) * M;
+  const mPerPxX = widthM / B.width_px;
+  const mPerPxY = heightM / B.height_px;
 
-  function aMundo(lon, lat) {
-    return { e: (lon - L.oeste) * M * cosRef, s: (L.norte - lat) * M };
+  function toWorld(lon, lat) {
+    return { e: (lon - B.west) * M * cosRef, s: (B.north - lat) * M };
   }
-  function aLonLat(e, s) {
-    return { lon: L.oeste + e / (M * cosRef), lat: L.norte - s / M };
-  }
-  function aPx(lon, lat) {
+  function toPx(lon, lat) {
     return {
-      x: (lon - L.oeste) / (L.este - L.oeste) * L.ancho_px,
-      y: (L.norte - lat) / (L.norte - L.sur) * L.alto_px,
+      x: (lon - B.west) / (B.east - B.west) * B.width_px,
+      y: (B.north - lat) / (B.north - B.south) * B.height_px,
     };
   }
-  function pxALonLat(x, y) {
+  function pxToLonLat(x, y) {
     return {
-      lon: L.oeste + x / L.ancho_px * (L.este - L.oeste),
-      lat: L.norte - y / L.alto_px * (L.norte - L.sur),
+      lon: B.west + x / B.width_px * (B.east - B.west),
+      lat: B.north - y / B.height_px * (B.north - B.south),
     };
   }
-  function distancia(a, b) { return Math.hypot(a.e - b.e, a.s - b.s); }
-  /* Rumbo en grados desde el norte, en sentido horario. */
-  function rumbo(a, b) {
+  function distance(a, b) { return Math.hypot(a.e - b.e, a.s - b.s); }
+  /* Bearing in degrees from north, clockwise. */
+  function bearing(a, b) {
     const r = Math.atan2(b.e - a.e, -(b.s - a.s)) * 180 / Math.PI;
     return (r + 360) % 360;
   }
-  function difAngulo(a, b) { return ((b - a + 540) % 360) - 180; }
-  function avanzar(p, rumboGrados, metros) {
-    const r = rumboGrados * Math.PI / 180;
-    return { e: p.e + Math.sin(r) * metros, s: p.s - Math.cos(r) * metros };
+  function angleDiff(a, b) { return ((b - a + 540) % 360) - 180; }
+  function advance(p, bearingDeg, meters) {
+    const r = bearingDeg * Math.PI / 180;
+    return { e: p.e + Math.sin(r) * meters, s: p.s - Math.cos(r) * meters };
   }
-  function puntoCardinal(g) {
-    const n = I18N.t('cardinal');
-    return n[Math.round(((g % 360) + 360) % 360 / 45) % 8];
+  function compassPoint(deg) {
+    const names = ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'];
+    return names[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
   }
 
-  window.Geo = { aMundo, aLonLat, aPx, pxALonLat, distancia, rumbo, difAngulo, avanzar, puntoCardinal,
-    anchoM, altoM, mPorPxX, mPorPxY };
+  window.Geo = { toWorld, toPx, pxToLonLat, distance, bearing, angleDiff, advance, compassPoint,
+    widthM, heightM, mPerPxX, mPerPxY };
 })();
